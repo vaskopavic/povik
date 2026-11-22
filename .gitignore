@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+dist-ssr/
+build/
+out/
+*.tsbuildinfo
+
+# Turborepo and tool caches
+.turbo/
+.vite/
+.eslintcache
+.cache/
+
+# Electron packaging output
+release/
+
+# Go (binaries and test output, if any Go code is added)
+/bin/
+*.test
+*.out
+coverage.txt
+
+# Tests
+coverage/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+.idea/
+*.swp
+*.swo
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Claude Code (shared settings stay tracked)
+.claude/settings.local.json
+.claude/worktrees/
+
+# Local scratch
+.scratch/
+tmp/

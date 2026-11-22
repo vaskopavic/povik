@@ -1,0 +1,42 @@
+packages:
+  - apps/*
+  - packages/*
+  - e2e
+
+# Dependencies allowed to run install scripts. pnpm refuses all others.
+allowBuilds:
+  esbuild: true
+
+# Versions shared by more than one package. Reference them as "catalog:".
+catalog:
+  '@orpc/client': ^1.16.4
+  '@orpc/contract': ^1.16.4
+  '@orpc/openapi': ^1.16.4
+  '@orpc/openapi-client': ^1.16.4
+  '@orpc/server': ^1.16.4
+  '@orpc/tanstack-query': ^1.16.4
+  '@orpc/zod': ^1.16.4
+  '@types/node': ^26.6.6
+  drizzle-orm: ^0.45.4
+  eslint: ^10.15.0
+  postgres: ^3.4.9
+  tsdown: ^0.23.7
+  tsx: ^4.23.15
+  # typescript-eslint supports TypeScript up to 6.0, so stay on 6.0 until it supports 7.
+  typescript: ~6.0.3
+  vitest: ^5.1.1
+  zod: ^4.6.7
+
+# Code that runs on users' machines (agent, CLI, and the executor inside Electron) must work on
+# Node 22, so it type-checks against Node 22's APIs. Reference as "catalog:node22".
+catalogs:
+  node22:
+    '@types/node': ^22.20.5
+
+# pnpm holds back versions published only days ago. These exact versions were let through when
+# they were added; remove an entry once that version is older than pnpm's minimum age.
+minimumReleaseAgeExclude:
+  - '@hono/node-server@2.1.11'
+  - '@tanstack/query-core@5.108.1'
+  - '@tanstack/react-query@5.108.1'
+  - lucide-react@1.77.0

@@ -1,0 +1,28 @@
+name: Set up workspace
+description: Node from .nvmrc, pnpm through corepack, cached pnpm store, frozen install.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+
+    # Node 25+ no longer ships corepack; it reads the pnpm version from package.json.
+    - name: Enable corepack
+      shell: bash
+      run: npm install --global corepack@0.36.0 && corepack enable
+
+    - name: Locate pnpm store
+      id: pnpm-store
+      shell: bash
+      run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/cache@v4
+      with:
+        path: ${{ steps.pnpm-store.outputs.path }}
+        key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: pnpm-${{ runner.os }}-
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile

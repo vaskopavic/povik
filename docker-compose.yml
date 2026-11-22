@@ -1,0 +1,53 @@
+# Local development: `docker compose up -d postgres`
+# Self-hosting:      set POVIK_DOMAIN and POSTGRES_PASSWORD, then `docker compose --profile app up -d`
+name: povik
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: povik
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-povik}
+      POSTGRES_DB: povik
+    ports:
+      # 54329 rather than 5432, so it doesn't clash with a Postgres already running locally.
+      - '127.0.0.1:54329:5432'
+    volumes:
+      # Postgres 18 images keep data under /var/lib/postgresql/18/docker, so mount the parent.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U povik -d povik']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    profiles: [app]
+    build: .
+    restart: unless-stopped
+    environment:
+      POVIK_DATABASE_URL: postgres://povik:${POSTGRES_PASSWORD:-povik}@postgres:5432/povik
+      POVIK_PUBLIC_URL: https://${POVIK_DOMAIN:-localhost}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  caddy:
+    profiles: [app]
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      POVIK_DOMAIN: ${POVIK_DOMAIN:-localhost}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - server
+
+volumes:
+  pgdata:
+  caddy_data:

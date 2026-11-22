@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  push:
+    branches: [main, staging, dev]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
+
+jobs:
+  check:
+    name: Lint, typecheck, test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: povik
+          POSTGRES_PASSWORD: povik
+          POSTGRES_DB: povik
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U povik -d povik"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      POVIK_TEST_DATABASE_URL: postgres://povik:povik@localhost:5432/povik
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: Formatting
+        run: pnpm format:check
+
+      - name: Lint, typecheck, test
+        run: pnpm check
+
+      - name: Migrations match the schema
+        run: |
+          pnpm --filter @povik/db db:generate
+          if [ -n "$(git status --porcelain packages/db/src/migrations)" ]; then
+            echo "::error::packages/db/src/migrations is out of date. Run 'pnpm db:generate' and commit the result."
+            git status --porcelain packages/db/src/migrations
+            exit 1
+          fi
+
+  e2e:
+    name: End to end
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: povik
+          POSTGRES_PASSWORD: povik
+          POSTGRES_DB: povik
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U povik -d povik"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      POVIK_DATABASE_URL: postgres://povik:povik@localhost:5432/povik
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: Install Chromium for Playwright
+        run: pnpm --filter @povik/e2e exec playwright install --with-deps chromium
+
+      - name: Build and run Playwright
+        run: pnpm e2e
+
+      # Playwright runs the server with NODE_ENV=production. Also run the bundle in the
+      # default (development) mode, which once crashed on a logger setting.
+      - name: Built server runs outside production mode
+        run: node apps/server/dist/index.mjs migrate
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: e2e/test-results
+          retention-days: 7
+
+  packages:
+    name: Agent and CLI packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: Build and pack
+        run: |
+          pnpm turbo run build --filter=@povik/agent --filter=@povik/cli
+          pnpm --filter @povik/agent --filter @povik/cli pack --pack-destination "$RUNNER_TEMP/packs"
+
+      # Users run these on their own machines, so test the published tarballs on the oldest
+      # supported Node, from a folder with no node_modules.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run the packed tarballs on Node 22
+        run: |
+          cd "$(mktemp -d)"
+          agent=$(npx --yes --package="$RUNNER_TEMP/packs/povik-agent-0.0.0.tgz" povik-agent 2>&1 || true)
+          cli=$(npx --yes --package="$RUNNER_TEMP/packs/povik-cli-0.0.0.tgz" povik 2>&1 || true)
+          echo "$agent"; echo "$cli"
+          echo "$agent" | grep -q "povik-agent (protocol v1)"
+          echo "$cli" | grep -q "povik run (spec v1)"
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: povik
+          POSTGRES_PASSWORD: povik
+          POSTGRES_DB: povik
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U povik -d povik"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build --tag povik:ci .
+
+      # The image has no node_modules, so a dependency that wasn't bundled only shows up
+      # when the container starts. Start it and check it serves the app and the API.
+      - name: Run image
+        run: |
+          docker run --detach --name povik --network host \
+            -e POVIK_DATABASE_URL=postgres://povik:povik@localhost:5432/povik \
+            -e POVIK_PUBLIC_URL=http://localhost:8080 \
+            povik:ci
+          for _ in $(seq 1 30); do curl -sf http://localhost:8080/readyz && break; sleep 1; done
+          curl -sf http://localhost:8080/api/v1/me | grep -q '"user":null'
+          curl -sf http://localhost:8080/ | grep -q '<title>povik</title>'
+          asset=$(curl -sf http://localhost:8080/ | grep -oE '/assets/index-[^"]+\.js' | head -1)
+          curl -sfI "http://localhost:8080$asset" | grep -qi 'immutable'
+
+      - name: Container logs
+        if: always()
+        run: docker logs povik || true

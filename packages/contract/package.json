@@ -1,0 +1,25 @@
+{
+  "name": "@povik/contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "lint": "eslint .",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@orpc/contract": "catalog:",
+    "@povik/spec": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@povik/config": "workspace:*",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

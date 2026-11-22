@@ -1,0 +1,25 @@
+{
+  "name": "@povik/agent-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "lint": "eslint .",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@povik/executor": "workspace:*",
+    "@povik/spec": "workspace:*"
+  },
+  "devDependencies": {
+    "@povik/config": "workspace:*",
+    "@types/node": "catalog:node22",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

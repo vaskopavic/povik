@@ -1,0 +1,4 @@
+{
+  "extends": "@povik/config/tsconfig/node.json",
+  "include": ["tests", "*.ts"]
+}

@@ -1,0 +1,5 @@
+# TLS termination for self-hosting. Caddy gets a certificate for POVIK_DOMAIN automatically.
+{$POVIK_DOMAIN:localhost} {
+	encode zstd gzip
+	reverse_proxy server:8080
+}
